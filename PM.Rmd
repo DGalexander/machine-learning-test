@@ -90,9 +90,9 @@ pml_write_files = function(x){
 
 x <- data_evaluation
 x <- x[feature_set[feature_set!='classe']]
-answers <- predict(rf, newdata=x)
-
-answers
+result <- predict(rf, newdata=x)
+result
+pml_write_files(result)
 ```
 
 
