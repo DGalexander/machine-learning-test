@@ -1,0 +1,117 @@
+---
+title: "Practical Machine Learning Prediction Assignment Writeup"
+author: "David Alexander"
+date: "27/10/2016"
+output: html_document
+---
+
+This project is to predict the manner in which people did the exercise. The data for this project come from this source: <http://groupware.les.inf.puc-rio.br/har>.
+
+## Preprocessing
+
+Downloading the files to the working directory, we read the files to perform some basic exploratory data analysis. 
+
+```{r}
+data_training <- read.csv("pml-training.csv", na.strings=c("#DIV/0!") )
+data_evaluation <- read.csv("pml-testing.csv", na.strings=c("#DIV/0!") )
+```
+
+Then loaded the required packages
+
+```{r}
+library('Hmisc')
+library('caret')
+library('randomForest')
+library('foreach')
+library('doParallel')
+set.seed(2048)
+options(warn=-1)
+```
+
+Set varaible class
+
+```{r}
+for(i in c(8:ncol(data_training)-1)) {data_training[,i] = as.numeric(as.character(data_training[,i]))}
+for(i in c(8:ncol(data_evaluation)-1)) {data_evaluation[,i] = as.numeric(as.character(data_evaluation[,i]))}
+```
+
+Remove the blank columns for a better prediction and tidy up coulumns then display the feature set.
+
+```{r}
+feature_set <- colnames(data_training[colSums(is.na(data_training)) == 0])[-(1:7)]
+model_data <- data_training[feature_set]
+feature_set
+```
+
+Model data built from our feature set.
+
+```{r}
+model <- createDataPartition(y=model_data$classe, p=0.75, list=FALSE )
+training <- model_data[model,]
+testing <- model_data[-model,]
+```
+
+Build 5 random forests with 150 trees with parallel processing to build this model. 
+
+```{r}
+registerDoParallel()
+x <- training[-ncol(training)]
+y <- training$classe
+
+rf <- foreach(ntree=rep(150, 6), .combine=randomForest::combine, .packages='randomForest') %dopar% {
+randomForest(x, y, ntree=ntree) 
+}
+```
+
+Show error reports for both training and test data.
+
+```{r}
+predictions1 <- predict(rf, newdata=training)
+confusionMatrix(predictions1,training$classe)
+
+
+predictions2 <- predict(rf, newdata=testing)
+confusionMatrix(predictions2,testing$classe)
+```
+
+## Conclusions 
+
+As shown, this model is very accurate around 99%.
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+
+x <- data_evaluation
+x <- x[feature_set[feature_set!='classe']]
+answers <- predict(rf, newdata=x)
+
+answers
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
